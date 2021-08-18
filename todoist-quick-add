@@ -1,0 +1,33 @@
+#!/bin/bash
+# todoist-quick-add
+
+set -euo pipefail
+
+TOKEN_FILE=~/.todoist-quick-add.token
+
+error () { echo "Error: $*" ; exit 1 ; }
+require_bin () { which "$1" > /dev/null 2>&1 || error "executable '$1' not found. " ; }
+
+require_bin curl
+require_bin uuidgen
+
+# Load token.
+TODOIST_TOKEN=$(cat $TOKEN_FILE) || error "file $TOKEN_FILE not found"
+
+# Assume it's being run from terminal, use stdin.
+CONTENT="$*"
+
+# Generate a GUI for text entry, if required.
+case $1 in
+    --gui|--dialog)
+        require_bin zenity
+        CONTENT=$(zenity --width 500 --title "Todoist Quick Add" --entry --text Task:) ;;
+esac
+
+curl "https://api.todoist.com/rest/v1/tasks" \
+    -X POST \
+    --data '{"content": "'"$CONTENT"'"}' \
+    -H "Content-Type: application/json" \
+    -H "X-Request-Id: $(uuidgen)" \
+    -H "Authorization: Bearer $TODOIST_TOKEN"
+
